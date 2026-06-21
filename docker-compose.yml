@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: ticketflow-mongo
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo-data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: ticketflow
+
+  backend:
+    build: ./backend
+    container_name: ticketflow-backend
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    ports:
+      - '5000:5000'
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      MONGO_URI: mongodb://mongo:27017/ticketflow
+      JWT_SECRET: ${JWT_SECRET:-please_change_me_in_production}
+      JWT_EXPIRE: 7d
+      CLIENT_URL: http://localhost:5173
+
+  frontend:
+    build: ./frontend
+    container_name: ticketflow-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - '5173:80'
+
+volumes:
+  mongo-data:

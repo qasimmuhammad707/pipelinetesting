@@ -1,0 +1,19 @@
+{
+  "name": "ticketflow",
+  "version": "1.0.0",
+  "private": true,
+  "description": "TicketFlow - Production-grade ticket management system (ClickUp-style)",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently -n backend,frontend -c blue,green \"npm run dev --workspace=backend\" \"npm run dev --workspace=frontend\"",
+    "build": "npm run build --workspace=frontend",
+    "start": "npm run start --workspace=backend",
+    "install:all": "npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
