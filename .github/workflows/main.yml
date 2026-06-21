@@ -1,54 +1,55 @@
 name: Deploy to EC2
 
 on:
-push:
-branches:
-- main
+  push:
+    branches:
+      - main
 
 jobs:
-deploy:
-runs-on: ubuntu-latest
-steps:
-  - name: Checkout code
-    uses: actions/checkout@v4
+  deploy:
+    runs-on: ubuntu-latest
 
-  - name: Setup SSH key
-    run: |
-      mkdir -p ~/.ssh
-      echo "${{ secrets.EC2_KEY }}" > ~/.ssh/ec2_key.pem
-      chmod 600 ~/.ssh/ec2_key.pem
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-  - name: Add EC2 to known hosts
-    run: |
-      ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_KEY }}" > ~/.ssh/ec2_key.pem
+          chmod 600 ~/.ssh/ec2_key.pem
 
-  - name: Deploy to EC2
-    run: |
-      ssh -i ~/.ssh/ec2_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-        set -e
+      - name: Add EC2 to known hosts
+        run: |
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-        echo "Updating application..."
+      - name: Deploy to EC2
+        run: |
+          ssh -i ~/.ssh/ec2_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            set -e
 
-        if [ -d "$HOME/pipelinetesting" ]; then
-          cd "$HOME/pipelinetesting"
-          git pull origin main
-        else
-          git clone https://github.com/${{ github.repository }}.git "$HOME/pipelinetesting"
-          cd "$HOME/pipelinetesting"
-        fi
+            echo "Updating application..."
 
-        echo "Checking Docker..."
-        docker --version
-        docker compose version
+            if [ -d "$HOME/pipelinetesting" ]; then
+              cd "$HOME/pipelinetesting"
+              git pull origin main
+            else
+              git clone https://github.com/${{ github.repository }}.git "$HOME/pipelinetesting"
+              cd "$HOME/pipelinetesting"
+            fi
 
-        echo "Stopping old containers..."
-        docker compose down || true
+            echo "Checking Docker..."
+            docker --version
+            docker compose version
 
-        echo "Building and starting containers..."
-        docker compose up -d --build
+            echo "Stopping old containers..."
+            docker compose down || true
 
-        echo "Running containers..."
-        docker ps
+            echo "Building and starting containers..."
+            docker compose up -d --build
 
-        echo "Deployment successful!"
-      EOF
+            echo "Running containers..."
+            docker ps
+
+            echo "Deployment successful!"
+          EOF
