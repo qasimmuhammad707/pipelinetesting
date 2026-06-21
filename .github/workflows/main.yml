@@ -31,12 +31,12 @@ steps:
 
         echo "Updating application..."
 
-        if [ -d ~/pipelinetesting ]; then
-          cd ~/pipelinetesting
+        if [ -d "$HOME/pipelinetesting" ]; then
+          cd "$HOME/pipelinetesting"
           git pull origin main
         else
-          git clone https://github.com/${{ github.repository }}.git ~/pipelinetesting
-          cd ~/pipelinetesting
+          git clone https://github.com/${{ github.repository }}.git "$HOME/pipelinetesting"
+          cd "$HOME/pipelinetesting"
         fi
 
         echo "Checking Docker..."
@@ -49,7 +49,7 @@ steps:
         echo "Building and starting containers..."
         docker compose up -d --build
 
-        echo "Running containers:"
+        echo "Running containers..."
         docker ps
 
         echo "Deployment successful!"
