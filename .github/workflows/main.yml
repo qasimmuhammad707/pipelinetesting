@@ -33,24 +33,18 @@ steps:
 
   - name: Deploy to EC2
     run: |
-      ssh -o StrictHostKeyChecking=no \
-          -i ~/.ssh/ec2_key.pem \
-          ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << EOF
-
-        set -e
-
-        if [ -d ~/pipelinetesting ]; then
-          cd ~/pipelinetesting
-          git pull origin main
-        else
-          git clone https://github.com/${{ github.repository }}.git ~/pipelinetesting
-          cd ~/pipelinetesting
-        fi
-
-        docker compose down || true
-        docker compose up -d --build
-
-        echo "Deployment successful"
-
-      EOF
-```
+     ssh -i ~/.ssh/ec2_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+      set -e
+      echo "Pulling latest code..."
+      if [ -d pipelinetesting ]; then
+        cd pipelinetesting
+        git pull origin main
+      else
+        git clone https://github.com/${{ github.repository }}.git
+        cd pipelinetesting
+      fi
+      
+      echo "Building and starting containers..."
+      docker compose up -d --build
+      echo "Deployment successful!"
+     EOF
