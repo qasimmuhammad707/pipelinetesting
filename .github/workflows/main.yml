@@ -1,48 +1,80 @@
 name: Deploy to EC2
 
 on:
-  push:
-    branches:
-      - main
+push:
+branches:
+- main
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
+deploy:
+runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+```
+steps:
+  - name: Checkout Repository
+    uses: actions/checkout@v4
 
-      - name: Setup SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_KEY }}" > ~/.ssh/ec2_key.pem
-          chmod 600 ~/.ssh/ec2_key.pem
+  - name: Setup SSH Key
+    env:
+      EC2_KEY: ${{ secrets.EC2_KEY }}
+    run: |
+      mkdir -p ~/.ssh
 
-      - name: Add EC2 to known hosts
-        run: |
-          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+      # Write private key and remove Windows CRLF
+      printf '%s\n' "$EC2_KEY" | tr -d '\r' > ~/.ssh/ec2_key.pem
 
-      - name: Deploy to EC2
-        run: |
-          ssh -i ~/.ssh/ec2_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+      chmod 600 ~/.ssh/ec2_key.pem
 
-            set -e
+  - name: Validate Private Key
+    run: |
+      ssh-keygen -lf ~/.ssh/ec2_key.pem || (echo "Invalid private key" && exit 1)
 
-            echo "Pulling latest code..."
-            if [ -d pipelinetesting ]; then
-              cd pipelinetesting
-              git pull origin main
-            else
-              git clone https://github.com/${{ github.repository }}.git
-              cd pipelinetesting
-            fi
+  - name: Add EC2 Host to Known Hosts
+    run: |
+      ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-            echo "Stopping old containers..."
-            docker compose down || true
+  - name: Test SSH Connection
+    run: |
+      ssh -o StrictHostKeyChecking=no \
+          -i ~/.ssh/ec2_key.pem \
+          ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+          "echo 'SSH Connection Successful'"
 
-            echo "Building and starting containers..."
-            docker compose up -d --build
+  - name: Deploy Application
+    run: |
+      ssh -o StrictHostKeyChecking=no \
+          -i ~/.ssh/ec2_key.pem \
+          ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << EOF
 
-            echo "Deployment successful!"
-          EOF
+        set -e
+
+        APP_DIR="\$HOME/pipelinetesting"
+
+        echo "Starting deployment..."
+
+        if [ -d "\$APP_DIR" ]; then
+          echo "Repository exists. Pulling latest code..."
+          cd "\$APP_DIR"
+          git pull origin main
+        else
+          echo "Repository not found. Cloning..."
+          git clone https://github.com/${{ github.repository }}.git "\$APP_DIR"
+          cd "\$APP_DIR"
+        fi
+
+        echo "Stopping existing containers..."
+        docker compose down || true
+
+        echo "Removing unused Docker resources..."
+        docker system prune -f || true
+
+        echo "Building and starting containers..."
+        docker compose up -d --build
+
+        echo "Running containers:"
+        docker ps
+
+        echo "Deployment completed successfully!"
+
+      EOF
+```
